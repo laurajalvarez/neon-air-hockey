@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Neon Air Hockey - Menú</title>
+		<link rel="stylesheet" href="estilo.css" />
+	</head>
+	<body>
+
+		<section class="panel-menu" id="panelMenu">
+			<h1 class="titulo-juego">
+				<span class="brillo-rojo">NEON</span><br />
+				<span class="brillo-azul">AIR HOCKEY</span>
+			</h1>
+			<a id="botonIniciar" class="boton-iniciar" href="juego.html">
+				Iniciar Partida<br />(2 Jugadores)
+			</a>
+
+			<div class="reglas">
+				<p><strong>Jugador 1 (AZUL):</strong> W A S D</p>
+				<p><strong>Jugador 2 (ROJO):</strong> Flechas</p>
+				<p>El primer jugador que llegue a 5 puntos gana.</p>
+			</div>
+
+			<div class="caja-record">
+				<p class="etiqueta-record">Mayor diferencia de victoria registrada:</p>
+				<p class="valor-record" id="valorRecord">+0</p>
+				<p class="ultimo-ganador" id="valorUltimoGanador">Último ganador: -</p>
+			</div>
+
+			<script src="juego.js"></script>
+
+			<script>
+    if (typeof cargarRecords === "function") {
+      cargarRecords();
+    }
+  	</script>
+		</body>
+	</html>

@@ -1,39 +1,37 @@
-// CONFIGURACIÓN GENERAL DEL JUEGO
-
-// Referencias al canvas y al contexto 2D
-const lienzo = document.getElementById("lienzoJuego");
-const ctx = lienzo.getContext("2d");
-
-// Referencias a elementos HTML de la interfaz
-const botonIniciar = document.getElementById("botonIniciar");
 const panelMenu = document.getElementById("panelMenu");
-
-const capaFinal = document.getElementById("capaFinal");
-const botonVolverMenu = document.getElementById("botonVolverMenu");
-const textoGanador = document.getElementById("textoGanador");
-
 const valorRecord = document.getElementById("valorRecord");
 const valorUltimoGanador = document.getElementById("valorUltimoGanador");
 
-// Dimensiones del lienzo
-const ANCHO = lienzo.width;
-const ALTO = lienzo.height;
+const lienzo = document.getElementById("lienzoJuego");
+const ctx = lienzo ? lienzo.getContext("2d") : null;
 
-// Tamaño de la portería
-const ANCHO_PORTERIA = 120;
+const capaFinal = document.getElementById("capaFinal");
+const textoGanador = document.getElementById("textoGanador");
+
+const botonVolverMenu = document.getElementById("botonVolverMenu");
+
+// CONFIGURACIONES BÁSICAS DEL JUEGO
+
+let estadoJuego = "menu"; // "menu" | "jugando" | "finalizado"
+
+// Marcadores
+let marcadorJ1 = 0;
+let marcadorJ2 = 0;
 
 // Puntos necesarios para ganar
 const PUNTOS_PARA_GANAR = 5;
 
-// Estado global del juego
-let estadoJuego = "menu"; 
+// Dimensiones del lienzo solo si hay lienzo
+// Si estamos en menu.html, lienzo es null y no definimos ANCHO/ALTO
+let ANCHO = 0;
+let ALTO = 0;
+if (lienzo) {
+  ANCHO = lienzo.width;
+  ALTO = lienzo.height;
+}
 
-// Marcadores de los jugadores
-// Jugador 1 = parte inferior (AZUL)
-// Jugador 2 = parte superior (ROJO)
-let marcadorJ1 = 0;
-let marcadorJ2 = 0;
-
+// Tamaño de la portería (la "apertura" donde sí entra gol)
+const ANCHO_PORTERIA = 120;
 
 // RECORDS EN LOCALSTORAGE
 
@@ -41,18 +39,25 @@ function cargarRecords() {
   const mejorDiferenciaLS = localStorage.getItem("mejorDiferencia");
   const ultimoGanadorLS = localStorage.getItem("ultimoGanadorNombre");
 
-  valorRecord.textContent = mejorDiferenciaLS
-    ? `+${mejorDiferenciaLS}`
-    : "+0";
+  if (valorRecord) {
+    valorRecord.textContent = mejorDiferenciaLS
+      ? `+${mejorDiferenciaLS}`
+      : "+0";
+  }
 
-  valorUltimoGanador.textContent = ultimoGanadorLS
-    ? `Último ganador: ${ultimoGanadorLS}`
-    : "Último ganador: -";
+  if (valorUltimoGanador) {
+    valorUltimoGanador.textContent = ultimoGanadorLS
+      ? `Último ganador: ${ultimoGanadorLS}`
+      : "Último ganador: -";
+  }
 }
 
 function guardarRecords(nombreGanador, diferencia) {
   // diferencia = marcador ganador - marcador perdedor
-  const mejorActual = parseInt(localStorage.getItem("mejorDiferencia") || "0", 10);
+  const mejorActual = parseInt(
+    localStorage.getItem("mejorDiferencia") || "0",
+    10
+  );
 
   if (diferencia > mejorActual) {
     localStorage.setItem("mejorDiferencia", diferencia.toString());
@@ -61,47 +66,43 @@ function guardarRecords(nombreGanador, diferencia) {
   localStorage.setItem("ultimoGanadorNombre", nombreGanador);
 }
 
-// Ejecutamos una vez al cargar
-cargarRecords();
-
-
-// OBJETOS DEL JUEGO (JUGADORES Y DISCO)
+// OBJETOS DEL JUEGO
 
 const jugador1 = {
   x: ANCHO / 2,
   y: ALTO - 80,
   radio: 20,
-  color: "#4fa3ff", 
+  color: "#4fa3ff", // azul
   vx: 0,
   vy: 0,
   velocidadMax: 4,
-  friccion: 0.9
+  friccion: 0.9,
 };
 
 const jugador2 = {
   x: ANCHO / 2,
   y: 80,
   radio: 20,
-  color: "#ff3b3b", 
+  color: "#ff3b3b", // rojo
   vx: 0,
   vy: 0,
   velocidadMax: 4,
-  friccion: 0.9
+  friccion: 0.9,
 };
 
-// El disco (puck)
 const disco = {
   x: ANCHO / 2,
   y: ALTO / 2,
   radio: 12,
   color: "#ffffff",
   vx: 0,
-  vy: 0
+  vy: 0,
 };
 
-// Teclas activas en cada momento
+// TECLADO
 // Jugador 1: W A S D
 // Jugador 2: Flechas
+
 const teclasPresionadas = {
   w: false,
   a: false,
@@ -110,11 +111,8 @@ const teclasPresionadas = {
   ArrowUp: false,
   ArrowLeft: false,
   ArrowDown: false,
-  ArrowRight: false
+  ArrowRight: false,
 };
-
-
-// MANEJO DE TECLADO
 
 window.addEventListener("keydown", (evento) => {
   if (evento.key in teclasPresionadas) {
@@ -130,12 +128,10 @@ window.addEventListener("keyup", (evento) => {
   }
 });
 
-
 // ACTUALIZAR MOVIMIENTO DE UN JUGADOR
 
 function actualizarJugador(jugador, esquemaControles, limitesY) {
-  // esquemaControles: {arriba, abajo, izquierda, derecha}
-  // limitesY: {minY, maxY} -> el jugador NO puede salir de su zona vertical
+  if (!lienzo) return; // si no hay canvas (estamos en menu.html), no hacemos nada
 
   const aceleracion = 0.6;
 
@@ -154,7 +150,9 @@ function actualizarJugador(jugador, esquemaControles, limitesY) {
   }
 
   // Limitar la velocidad máxima del jugador
-  const magnitudVel = Math.sqrt(jugador.vx * jugador.vx + jugador.vy * jugador.vy);
+  const magnitudVel = Math.sqrt(
+    jugador.vx * jugador.vx + jugador.vy * jugador.vy
+  );
   if (magnitudVel > jugador.velocidadMax) {
     const escala = jugador.velocidadMax / magnitudVel;
     jugador.vx *= escala;
@@ -190,71 +188,73 @@ function actualizarJugador(jugador, esquemaControles, limitesY) {
   }
 }
 
-
-// ACTUALIZAR MOVIMIENTO DEL DISCO
+// ACTUALIZAR DISCO
 
 function actualizarDisco() {
+  if (!lienzo) return;
+
   disco.x += disco.vx;
   disco.y += disco.vy;
 
-  // Pequeña fricción global para que el disco no acelere infinito
+  // Pequeña fricción global para que el disco desacelere
   disco.vx *= 0.995;
   disco.vy *= 0.995;
 
-  // Rebote contra pared izquierda
+  // Rebote pared izquierda
   if (disco.x - disco.radio < 0) {
     disco.x = disco.radio;
     disco.vx *= -1;
   }
-  // Rebote contra pared derecha
+
+  // Rebote pared derecha
   if (disco.x + disco.radio > ANCHO) {
     disco.x = ANCHO - disco.radio;
     disco.vx *= -1;
   }
 
-  // Revisar zona superior
+  // Zona superior (posible gol para Jugador 1)
   if (disco.y - disco.radio < 0) {
-    // ¿Gol para Jugador 1? 
     const porteriaMinX = (ANCHO - ANCHO_PORTERIA) / 2;
     const porteriaMaxX = (ANCHO + ANCHO_PORTERIA) / 2;
 
     if (disco.x > porteriaMinX && disco.x < porteriaMaxX) {
-      // El Jugador 1 (abajo) anota
+      // Gol para Jugador 1 (abajo / azul)
       marcadorJ1++;
       revisarVictoria();
       reiniciarRonda();
       return;
     } else {
-      // Rebote pared superior normal
+      // Rebote contra pared superior normal
       disco.y = disco.radio;
       disco.vy *= -1;
     }
   }
 
-  // Revisar zona inferior
+  // Zona inferior (posible gol para Jugador 2)
   if (disco.y + disco.radio > ALTO) {
-    // ¿Gol para Jugador 2? 
     const porteriaMinX = (ANCHO - ANCHO_PORTERIA) / 2;
     const porteriaMaxX = (ANCHO + ANCHO_PORTERIA) / 2;
 
     if (disco.x > porteriaMinX && disco.x < porteriaMaxX) {
-      // El Jugador 2 (arriba) anota
+      // Gol para Jugador 2 (arriba / rojo)
       marcadorJ2++;
       revisarVictoria();
       reiniciarRonda();
       return;
     } else {
-      // Rebote pared inferior normal
+      // Rebote contra pared inferior normal
       disco.y = ALTO - disco.radio;
       disco.vy *= -1;
     }
   }
 }
 
-
 // COLISIÓN ENTRE JUGADOR Y DISCO
+// La fuerza del tiro depende de la velocidad del jugador al momento del impacto.
 
 function manejarColision(jugador) {
+  if (!lienzo) return;
+
   const dx = disco.x - jugador.x;
   const dy = disco.y - jugador.y;
   const distancia = Math.sqrt(dx * dx + dy * dy);
@@ -266,7 +266,9 @@ function manejarColision(jugador) {
     let ny = dy / distancia;
 
     // Magnitud de velocidad del jugador en el instante del impacto
-    const rapidezJugador = Math.sqrt(jugador.vx * jugador.vx + jugador.vy * jugador.vy);
+    const rapidezJugador = Math.sqrt(
+      jugador.vx * jugador.vx + jugador.vy * jugador.vy
+    );
 
     // Potencia base del golpe
     const potenciaBase = 3;
@@ -276,17 +278,17 @@ function manejarColision(jugador) {
     disco.vx = nx * potenciaTotal;
     disco.vy = ny * potenciaTotal;
 
-    // Reposicionamos el disco un poco afuera de la paleta
-    // para evitar que "tiemble" pegado varias veces seguidas
+    // Reposicionar el disco un poco afuera de la paleta
     disco.x = jugador.x + nx * (distanciaMinima + 1);
     disco.y = jugador.y + ny * (distanciaMinima + 1);
   }
 }
 
-
 // REINICIAR RONDA DESPUÉS DE UN GOL
 
 function reiniciarRonda() {
+  if (!lienzo) return;
+
   // Recolocar jugadores
   jugador1.x = ANCHO / 2;
   jugador1.y = ALTO - 80;
@@ -303,37 +305,42 @@ function reiniciarRonda() {
   disco.y = ALTO / 2;
   disco.vx = 0;
   disco.vy = 0;
-
 }
-
 
 // VERIFICAR SI ALGUIEN YA GANÓ LA PARTIDA
 
 function revisarVictoria() {
+  if (!lienzo) return;
+
   if (marcadorJ1 >= PUNTOS_PARA_GANAR || marcadorJ2 >= PUNTOS_PARA_GANAR) {
     // Determinar ganador por marcador
-    const ganador =
-      marcadorJ1 > marcadorJ2 ? "Jugador 1" : "Jugador 2";
+    const ganador = marcadorJ1 > marcadorJ2 ? "Jugador 1" : "Jugador 2";
 
     // Calcular diferencia de victoria para guardarla
     const diferencia = Math.abs(marcadorJ1 - marcadorJ2);
     guardarRecords(ganador, diferencia);
-    cargarRecords();
+    cargarRecords(); // para refrescar localStorage en caso de volver al menú
 
     // Mostrar pantalla final
-    textoGanador.textContent = `${ganador} Gana`;
-    capaFinal.classList.remove("oculto");
+    if (textoGanador) {
+      textoGanador.textContent = `${ganador} Gana`;
+    }
+    if (capaFinal) {
+      capaFinal.classList.remove("oculto");
+    }
+
     estadoJuego = "finalizado";
   }
 }
 
-
 // DIBUJO DEL CAMPO Y JUGADORES
 
 function dibujarCampo() {
+  if (!ctx) return;
+
   ctx.save();
 
-  // Dibujar "bandas" superior roja e inferior azul con brillo
+  // Bordes superior/inferior tipo neón
   ctx.shadowBlur = 20;
 
   // Banda superior roja
@@ -353,7 +360,7 @@ function dibujarCampo() {
   ctx.lineTo(ANCHO - 20, ALTO - 20);
   ctx.stroke();
 
-  // Línea media suave
+  // Línea media
   ctx.shadowColor = "transparent";
   ctx.strokeStyle = "rgba(255,255,255,0.07)";
   ctx.lineWidth = 2;
@@ -362,7 +369,7 @@ function dibujarCampo() {
   ctx.lineTo(ANCHO, ALTO / 2);
   ctx.stroke();
 
-  // Dibujar las porterías (rectángulos que marcan la zona de gol)
+  // Dibujar porterías
   const porteriaMinX = (ANCHO - ANCHO_PORTERIA) / 2;
   const porteriaMaxX = (ANCHO + ANCHO_PORTERIA) / 2;
 
@@ -381,7 +388,7 @@ function dibujarCampo() {
   ctx.rect(porteriaMinX, ALTO - 20, ANCHO_PORTERIA, 15);
   ctx.stroke();
 
-  // Círculo central tipo "face-off"
+  // Círculo central
   ctx.shadowColor = "rgba(255,255,255,0.15)";
   ctx.strokeStyle = "rgba(255,255,255,0.15)";
   ctx.lineWidth = 2;
@@ -393,6 +400,8 @@ function dibujarCampo() {
 }
 
 function dibujarJugador(jugador) {
+  if (!ctx) return;
+
   ctx.save();
   ctx.shadowBlur = 20;
   ctx.shadowColor = jugador.color;
@@ -404,6 +413,8 @@ function dibujarJugador(jugador) {
 }
 
 function dibujarDisco() {
+  if (!ctx) return;
+
   ctx.save();
   ctx.shadowBlur = 15;
   ctx.shadowColor = "rgba(255,255,255,0.8)";
@@ -414,8 +425,10 @@ function dibujarDisco() {
   ctx.restore();
 }
 
-// Marcador dibujado también dentro del canvas, estilo arcade
+// Marcador dibujado dentro del canvas
 function dibujarMarcadorCanvas() {
+  if (!ctx) return;
+
   ctx.save();
   ctx.font = "20px monospace";
   ctx.textAlign = "right";
@@ -427,18 +440,25 @@ function dibujarMarcadorCanvas() {
   // Marcador Jugador 1 abajo (azul)
   ctx.fillStyle = "#4fa3ff";
   ctx.fillText(marcadorJ1.toString(), ANCHO - 20, ALTO / 2 + 25);
+
   ctx.restore();
 }
-
 
 // BUCLE PRINCIPAL DE ANIMACIÓN
 
 function bucleJuego() {
+  if (!ctx) return;
+
   if (estadoJuego === "jugando") {
     // Actualizar jugadores
     actualizarJugador(
       jugador2,
-      { arriba: "ArrowUp", abajo: "ArrowDown", izquierda: "ArrowLeft", derecha: "ArrowRight" },
+      {
+        arriba: "ArrowUp",
+        abajo: "ArrowDown",
+        izquierda: "ArrowLeft",
+        derecha: "ArrowRight",
+      },
       { minY: 0, maxY: ALTO / 2 }
     );
 
@@ -448,15 +468,13 @@ function bucleJuego() {
       { minY: ALTO / 2, maxY: ALTO }
     );
 
-    // Actualizar disco
+    // Actualizar disco y colisiones
     actualizarDisco();
-
-    // Manejar colisiones entre disco y los dos jugadores
     manejarColision(jugador1);
     manejarColision(jugador2);
   }
 
-  // Limpiar el lienzo y volver a dibujar todo
+  // Redibujar frame
   ctx.clearRect(0, 0, ANCHO, ALTO);
   dibujarCampo();
   dibujarDisco();
@@ -467,32 +485,31 @@ function bucleJuego() {
   requestAnimationFrame(bucleJuego);
 }
 
-
-// CONTROL DE INICIO Y FIN DE PARTIDA
+// INICIO / FLUJO SEGÚN PANTALLA
 
 function iniciarPartida() {
-  // Reiniciar marcadores
+  if (!lienzo) return; // en menu.html no hay partida
+
   marcadorJ1 = 0;
   marcadorJ2 = 0;
   reiniciarRonda();
 
-  capaFinal.classList.add("oculto");
+  // ocultar capa final si estaba visible
+  if (capaFinal) {
+    capaFinal.classList.add("oculto");
+  }
+
   estadoJuego = "jugando";
 }
 
-function volverAlMenu() {
-  capaFinal.classList.add("oculto");
-  estadoJuego = "menu";
+// ARRANQUE AUTOMÁTICO
+
+if (panelMenu && !lienzo) {
+  cargarRecords();
 }
 
-// Eventos de los botones
-botonIniciar.addEventListener("click", () => {
+if (lienzo && ctx) {
+  cargarRecords();
   iniciarPartida();
-});
-
-botonVolverMenu.addEventListener("click", () => {
-  volverAlMenu();
-});
-
-// Lanzar el bucle de animación inmediatamente
-requestAnimationFrame(bucleJuego);
+  requestAnimationFrame(bucleJuego);
+}
